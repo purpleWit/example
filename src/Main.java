@@ -34,8 +34,9 @@ class Math {
     }
 
     float umn (float x, float y) {
-        for (int i = 1; i == y; i++) {
-            x += x;
+        float n = x;
+        for (int i = 1; y - i != 0; i++) {
+            x += n;
         }
         return x;
     }
@@ -49,7 +50,7 @@ class Math {
     }
 
     float Pi_numb () {
-        return 3.14159f;
+        return 3.1415926535f;
     }
 
 }
