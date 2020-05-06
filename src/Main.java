@@ -9,21 +9,12 @@ public class Main {
         System.out.print("Введите 2 число: ");
         float second = scanner.nextInt();
         Math math = new Math();
-        System.out.println(math.sum(first, second));
-        System.out.println(math.minus(first, second));
-        System.out.println(math.umn(first, second));
-        System.out.println(math.del(first, second));
-        System.out.println(math.ostatok(first, second));
-        System.out.println(math.Pi_numb());
     }
 }
 
 
 class Math {
 
-    Math () {
-
-    }
 
     float sum (float x, float y) {
         return x + y;
@@ -53,4 +44,28 @@ class Math {
         return 3.1415926535f;
     }
 
+}
+
+class Robot extends Math{
+
+    float first = 10;
+    float second = 10;
+
+    float setNumber1 (float numb) {
+        first = numb;
+        return  first;
+    }
+
+    float setNumber2 (float numb) {
+        second = numb;
+        return second;
+    }
+
+    void calc(float first, float second) {
+        System.out.println(sum(first, second));
+        System.out.println(minus(first, second));
+        System.out.println(umn(first, second));
+        System.out.println(del(first, second));
+
+    }
 }
