@@ -8,7 +8,10 @@ public class Main {
         float first = scanner.nextInt();
         System.out.print("Введите 2 число: ");
         float second = scanner.nextInt();
-        Math math = new Math();
+        Robot robot = new Robot();
+        robot.setNumber1(first);
+        robot.setNumber2(second);
+        robot.calc();
     }
 }
 
@@ -61,7 +64,7 @@ class Robot extends Math{
         return second;
     }
 
-    void calc(float first, float second) {
+    void calc() {
         System.out.println(sum(first, second));
         System.out.println(minus(first, second));
         System.out.println(umn(first, second));
