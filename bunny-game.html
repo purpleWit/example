@@ -98,7 +98,7 @@
 </div>
 <div id="btn-jump">🐰</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
 <script>
 // ─── Scene ────────────────────────────────────────────────────────────────────
 const scene = new THREE.Scene();
@@ -202,9 +202,9 @@ bunny.add(headMesh);
 
 function makeEar(side) {
   const ear = new THREE.Group();
-  const outer = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.5, 4, 8), bunnyMat);
+  const outer = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.55, 8), bunnyMat);
   outer.castShadow = true; ear.add(outer);
-  const inner = new THREE.Mesh(new THREE.CapsuleGeometry(0.04, 0.4, 4, 8), noseMat);
+  const inner = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.44, 8), noseMat);
   inner.position.z = 0.04; ear.add(inner);
   ear.position.set(side * 0.18, 1.72, 0.1);
   ear.rotation.z = side * 0.15;
@@ -224,7 +224,7 @@ nose.position.set(0, 1.12, 0.52); bunny.add(nose);
 });
 
 function makeLeg(x, z) {
-  const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.3, 4, 8), bunnyMat);
+  const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.35, 8), bunnyMat);
   leg.position.set(x, 0.15, z); leg.castShadow = true; bunny.add(leg); return leg;
 }
 const legFL = makeLeg(-0.2, 0.3), legFR = makeLeg(0.2, 0.3);
