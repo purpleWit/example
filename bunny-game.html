@@ -2,70 +2,113 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
   <title>Зайчик и морковки</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { overflow: hidden; background: #87CEEB; font-family: Arial, sans-serif; }
+    body { overflow: hidden; background: #87CEEB; font-family: Arial, sans-serif; touch-action: none; }
     canvas { display: block; }
+
     #ui {
-      position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
-      display: flex; gap: 24px; align-items: center; pointer-events: none;
+      position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 12px; align-items: center; pointer-events: none; z-index: 10;
     }
     .card {
-      background: rgba(255,255,255,0.85); border-radius: 12px;
-      padding: 8px 20px; font-size: 18px; font-weight: bold; color: #333;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      background: rgba(255,255,255,0.88); border-radius: 12px;
+      padding: 6px 16px; font-size: 16px; font-weight: bold; color: #333;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2); white-space: nowrap;
     }
+
     #win {
-      display: none; position: fixed; inset: 0;
+      display: none; position: fixed; inset: 0; z-index: 20;
       background: rgba(0,0,0,0.5); align-items: center; justify-content: center;
     }
     #win.show { display: flex; }
     .win-box {
-      background: white; border-radius: 20px; padding: 40px 60px;
-      text-align: center; font-size: 28px; font-weight: bold;
+      background: white; border-radius: 20px; padding: 32px 48px;
+      text-align: center; font-size: 24px; font-weight: bold;
     }
-    .win-box p { font-size: 18px; margin-top: 8px; color: #555; }
+    .win-box p { font-size: 16px; margin-top: 8px; color: #555; }
     .win-box button {
-      margin-top: 20px; padding: 12px 32px; font-size: 18px;
+      margin-top: 20px; padding: 14px 36px; font-size: 18px;
       background: #4CAF50; color: white; border: none;
       border-radius: 10px; cursor: pointer; font-weight: bold;
     }
-    .win-box button:hover { background: #388E3C; }
+
+    /* ── Virtual joystick ── */
+    #joystick-zone {
+      position: fixed; bottom: 24px; left: 24px; z-index: 10;
+      width: 130px; height: 130px;
+    }
+    #joystick-base {
+      width: 130px; height: 130px; border-radius: 50%;
+      background: rgba(255,255,255,0.25); border: 3px solid rgba(255,255,255,0.5);
+      position: absolute; top: 0; left: 0;
+    }
+    #joystick-stick {
+      width: 52px; height: 52px; border-radius: 50%;
+      background: rgba(255,255,255,0.75); border: 3px solid rgba(255,255,255,0.9);
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      transition: transform 0.05s;
+    }
+
+    /* ── Jump button ── */
+    #btn-jump {
+      position: fixed; bottom: 40px; right: 28px; z-index: 10;
+      width: 72px; height: 72px; border-radius: 50%;
+      background: rgba(255,255,255,0.35); border: 3px solid rgba(255,255,255,0.7);
+      font-size: 28px; line-height: 66px; text-align: center;
+      user-select: none; -webkit-user-select: none;
+    }
+
+    /* Hide desktop hint on mobile */
     #controls {
       position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
       background: rgba(255,255,255,0.75); border-radius: 10px;
-      padding: 8px 20px; font-size: 14px; color: #444; pointer-events: none;
+      padding: 6px 16px; font-size: 13px; color: #444; pointer-events: none; z-index: 10;
     }
+    @media (pointer: coarse) { #controls { display: none; } }
+    @media (pointer: fine)   { #joystick-zone, #btn-jump { display: none; } }
   </style>
 </head>
 <body>
+
 <div id="ui">
-  <div class="card">🥕 Морковок: <span id="score">0</span> / <span id="total">0</span></div>
+  <div class="card">🥕 <span id="score">0</span> / <span id="total">0</span></div>
   <div class="card">⏱ <span id="timer">0</span> с</div>
 </div>
 
 <div id="win">
   <div class="win-box">
     🎉 Зайчик сыт! 🐰<br>
-    <p>Все морковки съедены за <span id="finalTime"></span> секунд!</p>
+    <p>Все морковки съедены за <span id="finalTime"></span> с!</p>
     <button onclick="restartGame()">Играть снова</button>
   </div>
 </div>
 
-<div id="controls">WASD / стрелки — движение &nbsp;|&nbsp; Мышь — камера</div>
+<div id="controls">WASD / стрелки — движение &nbsp;|&nbsp; Мышь — камера &nbsp;|&nbsp; Пробел — прыжок</div>
+
+<!-- Touch controls (shown only on touch devices) -->
+<div id="joystick-zone">
+  <div id="joystick-base"></div>
+  <div id="joystick-stick"></div>
+</div>
+<div id="btn-jump">🐰</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-// ─── Scene setup ───────────────────────────────────────────────────────────
+// ─── Scene ────────────────────────────────────────────────────────────────────
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
 scene.fog = new THREE.Fog(0x87CEEB, 40, 120);
 
 const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 200);
-camera.position.set(0, 6, 12);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -77,241 +120,145 @@ window.addEventListener('resize', () => {
   renderer.setSize(innerWidth, innerHeight);
 });
 
-// ─── Lighting ───────────────────────────────────────────────────────────────
-const ambient = new THREE.AmbientLight(0xffffff, 0.5);
-scene.add(ambient);
-
+// ─── Lighting ────────────────────────────────────────────────────────────────
+scene.add(new THREE.AmbientLight(0xffffff, 0.5));
 const sun = new THREE.DirectionalLight(0xfff5e0, 1.2);
 sun.position.set(30, 60, 20);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-sun.shadow.camera.near = 1;
-sun.shadow.camera.far = 200;
-sun.shadow.camera.left = -60;
-sun.shadow.camera.right = 60;
-sun.shadow.camera.top = 60;
-sun.shadow.camera.bottom = -60;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.near = 1; sun.shadow.camera.far = 200;
+sun.shadow.camera.left = -60; sun.shadow.camera.right = 60;
+sun.shadow.camera.top = 60;  sun.shadow.camera.bottom = -60;
 scene.add(sun);
 
-// ─── Ground ─────────────────────────────────────────────────────────────────
-const groundGeo = new THREE.PlaneGeometry(100, 100, 40, 40);
-const groundMat = new THREE.MeshLambertMaterial({ color: 0x4CAF50 });
-const ground = new THREE.Mesh(groundGeo, groundMat);
+// ─── Ground ───────────────────────────────────────────────────────────────────
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(100, 100, 20, 20),
+  new THREE.MeshLambertMaterial({ color: 0x4CAF50 })
+);
 ground.rotation.x = -Math.PI / 2;
 ground.receiveShadow = true;
 scene.add(ground);
 
-// ─── Grass tufts ────────────────────────────────────────────────────────────
+// ─── Grass tufts ─────────────────────────────────────────────────────────────
 const grassMat = new THREE.MeshLambertMaterial({ color: 0x388E3C });
-for (let i = 0; i < 200; i++) {
-  const x = (Math.random() - 0.5) * 90;
-  const z = (Math.random() - 0.5) * 90;
+for (let i = 0; i < 180; i++) {
+  const x = (Math.random() - 0.5) * 90, z = (Math.random() - 0.5) * 90;
   const h = 0.2 + Math.random() * 0.3;
-  const g = new THREE.Mesh(
-    new THREE.ConeGeometry(0.08 + Math.random() * 0.1, h, 4),
-    grassMat
-  );
+  const g = new THREE.Mesh(new THREE.ConeGeometry(0.08 + Math.random() * 0.1, h, 4), grassMat);
   g.position.set(x, h / 2, z);
   g.rotation.y = Math.random() * Math.PI;
   scene.add(g);
 }
 
-// ─── Clouds ─────────────────────────────────────────────────────────────────
+// ─── Clouds ───────────────────────────────────────────────────────────────────
 const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+const clouds = [];
 function makeCloud(x, y, z) {
   const g = new THREE.Group();
-  const parts = [
-    [0, 0, 0, 2.5, 1.2],
-    [-2, -0.2, 0, 1.8, 1],
-    [2, -0.2, 0, 1.8, 1],
-    [-1, 0.4, 0, 1.5, 0.9],
-    [1, 0.4, 0, 1.5, 0.9],
-  ];
-  for (const [px, py, pz, rx, ry] of parts) {
-    const m = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 6), cloudMat);
-    m.scale.set(rx, ry, 1);
-    m.position.set(px, py, pz);
-    g.add(m);
-  }
-  g.position.set(x, y, z);
-  scene.add(g);
-  return g;
+  [[0,0,0,2.5,1.2],[-2,-0.2,0,1.8,1],[2,-0.2,0,1.8,1],[-1,0.4,0,1.5,0.9],[1,0.4,0,1.5,0.9]]
+    .forEach(([px,py,pz,rx,ry]) => {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(1, 7, 5), cloudMat);
+      m.scale.set(rx, ry, 1); m.position.set(px, py, pz); g.add(m);
+    });
+  g.position.set(x, y, z); scene.add(g); return g;
 }
-const clouds = [];
-for (let i = 0; i < 8; i++) {
-  clouds.push(makeCloud(
-    (Math.random() - 0.5) * 100,
-    15 + Math.random() * 10,
-    (Math.random() - 0.5) * 100
-  ));
-}
+for (let i = 0; i < 8; i++)
+  clouds.push(makeCloud((Math.random()-.5)*100, 15+Math.random()*10, (Math.random()-.5)*100));
 
-// ─── Trees ──────────────────────────────────────────────────────────────────
+// ─── Trees ────────────────────────────────────────────────────────────────────
 const trunkMat = new THREE.MeshLambertMaterial({ color: 0x795548 });
-const leafMat = new THREE.MeshLambertMaterial({ color: 0x2E7D32 });
+const leafMat  = new THREE.MeshLambertMaterial({ color: 0x2E7D32 });
+const treePositions = [];
 function makeTree(x, z) {
   const g = new THREE.Group();
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 1.5, 8), trunkMat);
-  trunk.position.y = 0.75;
-  trunk.castShadow = true;
-  g.add(trunk);
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 1.5, 7), trunkMat);
+  trunk.position.y = 0.75; trunk.castShadow = true; g.add(trunk);
   for (let i = 0; i < 3; i++) {
-    const r = 1.2 - i * 0.2;
-    const h = 1.8 - i * 0.3;
-    const cone = new THREE.Mesh(new THREE.ConeGeometry(r, h, 8), leafMat);
-    cone.position.y = 1.5 + i * 0.8;
-    cone.castShadow = true;
-    g.add(cone);
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(1.2-i*0.2, 1.8-i*0.3, 7), leafMat);
+    cone.position.y = 1.5 + i * 0.8; cone.castShadow = true; g.add(cone);
   }
-  g.position.set(x, 0, z);
-  scene.add(g);
+  g.position.set(x, 0, z); scene.add(g);
 }
-const treePositions = [];
 for (let i = 0; i < 18; i++) {
   let x, z;
-  do { x = (Math.random() - 0.5) * 85; z = (Math.random() - 0.5) * 85; }
-  while (Math.hypot(x, z) < 8);
-  treePositions.push([x, z]);
-  makeTree(x, z);
+  do { x = (Math.random()-.5)*85; z = (Math.random()-.5)*85; } while (Math.hypot(x,z) < 8);
+  treePositions.push([x, z]); makeTree(x, z);
 }
 
-// ─── Bunny ──────────────────────────────────────────────────────────────────
+// ─── Bunny ────────────────────────────────────────────────────────────────────
 const bunnyMat = new THREE.MeshLambertMaterial({ color: 0xf5f5f5 });
-const noseMat = new THREE.MeshLambertMaterial({ color: 0xff80ab });
-const eyeMat = new THREE.MeshLambertMaterial({ color: 0x212121 });
-const bunny = new THREE.Group();
+const noseMat  = new THREE.MeshLambertMaterial({ color: 0xff80ab });
+const eyeMat   = new THREE.MeshLambertMaterial({ color: 0x212121 });
+const bunny    = new THREE.Group();
 
-// body
 const bodyMesh = new THREE.Mesh(new THREE.SphereGeometry(0.5, 12, 10), bunnyMat);
-bodyMesh.scale.y = 1.1;
-bodyMesh.position.y = 0.5;
-bodyMesh.castShadow = true;
+bodyMesh.scale.y = 1.1; bodyMesh.position.y = 0.5; bodyMesh.castShadow = true;
 bunny.add(bodyMesh);
 
-// head
 const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.35, 12, 10), bunnyMat);
-headMesh.position.set(0, 1.2, 0.2);
-headMesh.castShadow = true;
+headMesh.position.set(0, 1.2, 0.2); headMesh.castShadow = true;
 bunny.add(headMesh);
 
-// ears
 function makeEar(side) {
   const ear = new THREE.Group();
   const outer = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.5, 4, 8), bunnyMat);
-  outer.castShadow = true;
-  ear.add(outer);
+  outer.castShadow = true; ear.add(outer);
   const inner = new THREE.Mesh(new THREE.CapsuleGeometry(0.04, 0.4, 4, 8), noseMat);
-  inner.position.z = 0.04;
-  ear.add(inner);
+  inner.position.z = 0.04; ear.add(inner);
   ear.position.set(side * 0.18, 1.72, 0.1);
   ear.rotation.z = side * 0.15;
   bunny.add(ear);
 }
 makeEar(-1); makeEar(1);
 
-// tail
 const tail = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), bunnyMat);
-tail.position.set(0, 0.5, -0.48);
-tail.castShadow = true;
-bunny.add(tail);
+tail.position.set(0, 0.5, -0.48); bunny.add(tail);
 
-// nose
 const nose = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), noseMat);
-nose.position.set(0, 1.12, 0.52);
-bunny.add(nose);
+nose.position.set(0, 1.12, 0.52); bunny.add(nose);
 
-// eyes
 [-0.14, 0.14].forEach(sx => {
   const eye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), eyeMat);
-  eye.position.set(sx, 1.26, 0.5);
-  bunny.add(eye);
+  eye.position.set(sx, 1.26, 0.5); bunny.add(eye);
 });
 
-// legs
-function makeLeg(x, z, name) {
+function makeLeg(x, z) {
   const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.3, 4, 8), bunnyMat);
-  leg.position.set(x, 0.15, z);
-  leg.castShadow = true;
-  leg.name = name;
-  bunny.add(leg);
-  return leg;
+  leg.position.set(x, 0.15, z); leg.castShadow = true; bunny.add(leg); return leg;
 }
-const legFL = makeLeg(-0.2, 0.3, 'legFL');
-const legFR = makeLeg(0.2, 0.3, 'legFR');
-const legBL = makeLeg(-0.22, -0.3, 'legBL');
-const legBR = makeLeg(0.22, -0.3, 'legBR');
+const legFL = makeLeg(-0.2, 0.3), legFR = makeLeg(0.2, 0.3);
+const legBL = makeLeg(-0.22,-0.3), legBR = makeLeg(0.22,-0.3);
 
-bunny.position.set(0, 0, 0);
 scene.add(bunny);
 
-// ─── Carrots ────────────────────────────────────────────────────────────────
-const carrotMat = new THREE.MeshLambertMaterial({ color: 0xFF6D00 });
-const leafCarrotMat = new THREE.MeshLambertMaterial({ color: 0x33691E });
-const CARROT_COUNT = 15;
+// ─── Carrots ─────────────────────────────────────────────────────────────────
+const carrotMat     = new THREE.MeshLambertMaterial({ color: 0xFF6D00 });
+const carrotLeafMat = new THREE.MeshLambertMaterial({ color: 0x33691E });
+const CARROT_COUNT  = 15;
 const carrots = [];
 
 function spawnCarrot() {
   const g = new THREE.Group();
-
   const body = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.7, 8), carrotMat);
-  body.rotation.x = Math.PI;
-  body.position.y = 0.35;
-  body.castShadow = true;
-  g.add(body);
-
+  body.rotation.x = Math.PI; body.position.y = 0.35; body.castShadow = true; g.add(body);
   for (let i = 0; i < 3; i++) {
-    const lf = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.35, 6), leafCarrotMat);
-    lf.position.set(
-      Math.sin(i * 2.1) * 0.07,
-      0.8,
-      Math.cos(i * 2.1) * 0.07
-    );
-    lf.rotation.z = (Math.random() - 0.5) * 0.6;
-    lf.rotation.x = (Math.random() - 0.5) * 0.3;
+    const lf = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.35, 6), carrotLeafMat);
+    lf.position.set(Math.sin(i*2.1)*0.07, 0.8, Math.cos(i*2.1)*0.07);
+    lf.rotation.z = (Math.random()-.5)*0.6;
     g.add(lf);
   }
-
   let x, z;
-  do { x = (Math.random() - 0.5) * 80; z = (Math.random() - 0.5) * 80; }
-  while (Math.hypot(x, z) < 3 || treePositions.some(([tx, tz]) => Math.hypot(x - tx, z - tz) < 2));
-
+  do { x = (Math.random()-.5)*80; z = (Math.random()-.5)*80; }
+  while (Math.hypot(x,z) < 3 || treePositions.some(([tx,tz]) => Math.hypot(x-tx,z-tz) < 2));
   g.position.set(x, 0, z);
   g.userData.alive = true;
-  scene.add(g);
-  carrots.push(g);
+  scene.add(g); carrots.push(g);
 }
-
 for (let i = 0; i < CARROT_COUNT; i++) spawnCarrot();
-
 document.getElementById('total').textContent = CARROT_COUNT;
 
-// ─── Controls ───────────────────────────────────────────────────────────────
-const keys = {};
-window.addEventListener('keydown', e => { keys[e.code] = true; });
-window.addEventListener('keyup', e => { keys[e.code] = false; });
-
-// Mouse look
-let yaw = 0;
-let pitch = 0.25;
-const canvas = renderer.domElement;
-canvas.addEventListener('click', () => canvas.requestPointerLock());
-document.addEventListener('pointerlockchange', () => {});
-document.addEventListener('mousemove', e => {
-  if (document.pointerLockElement === canvas) {
-    yaw -= e.movementX * 0.003;
-    pitch = Math.max(0.1, Math.min(0.7, pitch + e.movementY * 0.002));
-  }
-});
-
-// ─── Game state ──────────────────────────────────────────────────────────────
-let score = 0;
-let startTime = performance.now();
-let gameOver = false;
-const SPEED = 6;
-const CARROT_RADIUS = 1.2;
-const FIELD_HALF = 48;
-
-// ─── Particle pool ───────────────────────────────────────────────────────────
+// ─── Particles ───────────────────────────────────────────────────────────────
 const particles = [];
 function spawnParticles(pos) {
   for (let i = 0; i < 8; i++) {
@@ -320,41 +267,146 @@ function spawnParticles(pos) {
       new THREE.MeshLambertMaterial({ color: 0xFF6D00 })
     );
     p.position.copy(pos).add(new THREE.Vector3(
-      (Math.random() - 0.5) * 0.5, 0.3 + Math.random() * 0.5, (Math.random() - 0.5) * 0.5
+      (Math.random()-.5)*.5, .3+Math.random()*.5, (Math.random()-.5)*.5
     ));
-    p.userData.vel = new THREE.Vector3(
-      (Math.random() - 0.5) * 3, 2 + Math.random() * 3, (Math.random() - 0.5) * 3
-    );
+    p.userData.vel  = new THREE.Vector3((Math.random()-.5)*3, 2+Math.random()*3, (Math.random()-.5)*3);
     p.userData.life = 1.0;
-    scene.add(p);
-    particles.push(p);
+    scene.add(p); particles.push(p);
   }
 }
 
+// ─── Keyboard ────────────────────────────────────────────────────────────────
+const keys = {};
+addEventListener('keydown', e => { keys[e.code] = true; });
+addEventListener('keyup',   e => { keys[e.code] = false; });
+
+// ─── Mouse look ──────────────────────────────────────────────────────────────
+let yaw = 0, pitch = 0.25;
+const cvs = renderer.domElement;
+cvs.addEventListener('click', () => cvs.requestPointerLock());
+document.addEventListener('mousemove', e => {
+  if (document.pointerLockElement === cvs) {
+    yaw   -= e.movementX * 0.003;
+    pitch  = Math.max(0.1, Math.min(0.7, pitch + e.movementY * 0.002));
+  }
+});
+
+// ─── Virtual joystick ────────────────────────────────────────────────────────
+const joystickZone  = document.getElementById('joystick-zone');
+const joystickStick = document.getElementById('joystick-stick');
+const STICK_MAX = 42;
+
+const joystick = { active: false, id: -1, ox: 0, oy: 0, dx: 0, dy: 0 };
+
+joystickZone.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const t = e.changedTouches[0];
+  const r = joystickZone.getBoundingClientRect();
+  joystick.active = true;
+  joystick.id = t.identifier;
+  joystick.ox = r.left + r.width  / 2;
+  joystick.oy = r.top  + r.height / 2;
+  joystick.dx = joystick.dy = 0;
+}, { passive: false });
+
+function onJoystickMove(e) {
+  if (!joystick.active) return;
+  e.preventDefault();
+  for (const t of e.changedTouches) {
+    if (t.identifier !== joystick.id) continue;
+    let dx = t.clientX - joystick.ox;
+    let dy = t.clientY - joystick.oy;
+    const len = Math.hypot(dx, dy);
+    if (len > STICK_MAX) { dx = dx/len*STICK_MAX; dy = dy/len*STICK_MAX; }
+    joystick.dx = dx; joystick.dy = dy;
+    joystickStick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+  }
+}
+function onJoystickEnd(e) {
+  for (const t of e.changedTouches) {
+    if (t.identifier === joystick.id) {
+      joystick.active = false; joystick.dx = joystick.dy = 0;
+      joystickStick.style.transform = 'translate(-50%, -50%)';
+    }
+  }
+}
+document.addEventListener('touchmove', onJoystickMove, { passive: false });
+document.addEventListener('touchend',  onJoystickEnd);
+document.addEventListener('touchcancel', onJoystickEnd);
+
+// ─── Camera swipe (right half of screen, outside joystick) ───────────────────
+const camTouch = { active: false, id: -1, lx: 0, ly: 0 };
+const joystickRect = () => joystickZone.getBoundingClientRect();
+
+cvs.addEventListener('touchstart', e => {
+  e.preventDefault();
+  for (const t of e.changedTouches) {
+    if (camTouch.active) continue;
+    const jr = joystickRect();
+    const inJoy = t.clientX >= jr.left && t.clientX <= jr.right &&
+                  t.clientY >= jr.top  && t.clientY <= jr.bottom;
+    if (!inJoy) {
+      camTouch.active = true; camTouch.id = t.identifier;
+      camTouch.lx = t.clientX; camTouch.ly = t.clientY;
+    }
+  }
+}, { passive: false });
+
+cvs.addEventListener('touchmove', e => {
+  e.preventDefault();
+  for (const t of e.changedTouches) {
+    if (t.identifier !== camTouch.id) continue;
+    yaw  -= (t.clientX - camTouch.lx) * 0.005;
+    pitch = Math.max(0.1, Math.min(0.7, pitch + (t.clientY - camTouch.ly) * 0.004));
+    camTouch.lx = t.clientX; camTouch.ly = t.clientY;
+  }
+}, { passive: false });
+
+cvs.addEventListener('touchend', e => {
+  for (const t of e.changedTouches)
+    if (t.identifier === camTouch.id) camTouch.active = false;
+});
+
+// ─── Jump button ─────────────────────────────────────────────────────────────
+let touchJump = false;
+const btnJump = document.getElementById('btn-jump');
+btnJump.addEventListener('touchstart', e => { e.preventDefault(); touchJump = true;  }, { passive: false });
+btnJump.addEventListener('touchend',   e => { e.preventDefault(); touchJump = false; }, { passive: false });
+
+// ─── Game state ──────────────────────────────────────────────────────────────
+let score = 0, startTime = performance.now(), gameOver = false;
+const SPEED = 6, CARROT_RADIUS = 1.2, FIELD_HALF = 48;
+let bunnyVelY = 0, isJumping = false, bobTime = 0;
+
 // ─── Main loop ───────────────────────────────────────────────────────────────
 const clock = new THREE.Clock();
-let bunnyVelY = 0;
-let isJumping = false;
-let bobTime = 0;
 
 function animate() {
   requestAnimationFrame(animate);
   const dt = Math.min(clock.getDelta(), 0.05);
 
   if (!gameOver) {
-    const elapsed = ((performance.now() - startTime) / 1000) | 0;
-    document.getElementById('timer').textContent = elapsed;
+    document.getElementById('timer').textContent = ((performance.now() - startTime) / 1000) | 0;
 
-    // Movement
+    // Build movement direction
     const dir = new THREE.Vector3();
     const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
-    const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+    const right   = new THREE.Vector3( Math.cos(yaw), 0, -Math.sin(yaw));
+
+    // Keyboard
     if (keys['KeyW'] || keys['ArrowUp'])    dir.add(forward);
     if (keys['KeyS'] || keys['ArrowDown'])  dir.sub(forward);
     if (keys['KeyA'] || keys['ArrowLeft'])  dir.sub(right);
     if (keys['KeyD'] || keys['ArrowRight']) dir.add(right);
 
-    const moving = dir.lengthSq() > 0;
+    // Joystick
+    if (joystick.active && (Math.abs(joystick.dx) > 4 || Math.abs(joystick.dy) > 4)) {
+      const nx = joystick.dx / STICK_MAX, ny = joystick.dy / STICK_MAX;
+      dir.add(forward.clone().multiplyScalar(-ny));
+      dir.add(right.clone().multiplyScalar(nx));
+    }
+
+    const moving = dir.lengthSq() > 0.001;
     if (moving) {
       dir.normalize().multiplyScalar(SPEED * dt);
       bunny.position.add(dir);
@@ -365,43 +417,29 @@ function animate() {
     }
 
     // Jump
-    if ((keys['Space'] || keys['KeyF']) && !isJumping) {
-      bunnyVelY = 6;
-      isJumping = true;
+    if ((keys['Space'] || keys['KeyF'] || touchJump) && !isJumping) {
+      bunnyVelY = 6; isJumping = true;
     }
     bunnyVelY -= 18 * dt;
     bunny.position.y += bunnyVelY * dt;
-    if (bunny.position.y < 0) {
-      bunny.position.y = 0;
-      bunnyVelY = 0;
-      isJumping = false;
-    }
+    if (bunny.position.y < 0) { bunny.position.y = 0; bunnyVelY = 0; isJumping = false; }
 
     // Leg animation
     const swing = Math.sin(bobTime) * 0.4;
-    legFL.rotation.x = swing;
-    legFR.rotation.x = -swing;
-    legBL.rotation.x = -swing;
-    legBR.rotation.x = swing;
-
-    // Body bob
+    legFL.rotation.x =  swing; legFR.rotation.x = -swing;
+    legBL.rotation.x = -swing; legBR.rotation.x =  swing;
     bodyMesh.position.y = 0.5 + (moving ? Math.abs(Math.sin(bobTime)) * 0.05 : 0);
 
-    // Carrot collision
+    // Carrot eating
     for (const c of carrots) {
       if (!c.userData.alive) continue;
-      const dx = bunny.position.x - c.position.x;
-      const dz = bunny.position.z - c.position.z;
-      if (Math.hypot(dx, dz) < CARROT_RADIUS) {
-        c.userData.alive = false;
-        scene.remove(c);
-        score++;
+      if (Math.hypot(bunny.position.x - c.position.x, bunny.position.z - c.position.z) < CARROT_RADIUS) {
+        c.userData.alive = false; scene.remove(c); score++;
         document.getElementById('score').textContent = score;
         spawnParticles(c.position);
         if (score >= CARROT_COUNT) {
           gameOver = true;
-          const secs = ((performance.now() - startTime) / 1000).toFixed(1);
-          document.getElementById('finalTime').textContent = secs;
+          document.getElementById('finalTime').textContent = ((performance.now() - startTime) / 1000).toFixed(1);
           document.getElementById('win').classList.add('show');
         }
       }
@@ -412,29 +450,21 @@ function animate() {
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
     p.userData.life -= dt * 2;
-    if (p.userData.life <= 0) {
-      scene.remove(p);
-      particles.splice(i, 1);
-    } else {
-      p.userData.vel.y -= 10 * dt;
-      p.position.addScaledVector(p.userData.vel, dt);
-      p.material.opacity = p.userData.life;
-    }
+    if (p.userData.life <= 0) { scene.remove(p); particles.splice(i, 1); }
+    else { p.userData.vel.y -= 10 * dt; p.position.addScaledVector(p.userData.vel, dt); }
   }
 
-  // Cloud drift
+  // Clouds
   const t = performance.now() * 0.0001;
   clouds.forEach((c, i) => { c.position.x += Math.sin(t + i) * 0.01; });
 
-  // Camera follow
+  // Camera
   const camDist = 10;
-  const camHeight = camDist * Math.sin(pitch);
-  const camBack = camDist * Math.cos(pitch);
   const target = bunny.position.clone().add(new THREE.Vector3(0, 1.2, 0));
   camera.position.set(
-    target.x + Math.sin(yaw) * camBack,
-    target.y + camHeight,
-    target.z + Math.cos(yaw) * camBack
+    target.x + Math.sin(yaw) * camDist * Math.cos(pitch),
+    target.y + camDist * Math.sin(pitch),
+    target.z + Math.cos(yaw) * camDist * Math.cos(pitch)
   );
   camera.lookAt(target);
 
@@ -443,21 +473,17 @@ function animate() {
 
 // ─── Restart ─────────────────────────────────────────────────────────────────
 function restartGame() {
-  for (const c of carrots) scene.remove(c);
-  carrots.length = 0;
-  for (const p of particles) scene.remove(p);
-  particles.length = 0;
-  score = 0;
-  gameOver = false;
+  carrots.forEach(c => scene.remove(c)); carrots.length = 0;
+  particles.forEach(p => scene.remove(p)); particles.length = 0;
+  score = 0; gameOver = false;
   bunny.position.set(0, 0, 0);
-  startTime = performance.now();
-  bobTime = 0;
+  startTime = performance.now(); bobTime = 0;
   for (let i = 0; i < CARROT_COUNT; i++) spawnCarrot();
   document.getElementById('score').textContent = 0;
   document.getElementById('win').classList.remove('show');
 }
-
 window.restartGame = restartGame;
+
 animate();
 </script>
 </body>
