@@ -97,11 +97,10 @@ function avgDepth(verts) {
 }
 function renderFace(verts, color) {
   const pts = verts.map(([x,y,z])=>project(x,y,z));
-  const valid = pts.filter(p=>p);
-  if (valid.length<3) return;
+  if (pts.some(p=>!p)) return; // skip faces crossing near plane
   ctx.beginPath();
-  ctx.moveTo(valid[0].sx, valid[0].sy);
-  for (let i=1;i<valid.length;i++) ctx.lineTo(valid[i].sx, valid[i].sy);
+  ctx.moveTo(pts[0].sx, pts[0].sy);
+  for (let i=1;i<pts.length;i++) ctx.lineTo(pts[i].sx, pts[i].sy);
   ctx.closePath();
   ctx.fillStyle = color;
   ctx.fill();
@@ -127,9 +126,7 @@ function makeBox(ox,oy,oz, w,h,d, color, yaw=0) {
 }
 
 // ── Static world ──────────────────────────────────────────────────────────────
-const FIELD = 45;
 const staticFaces = [];
-staticFaces.push({verts:[[-FIELD,0,-FIELD],[FIELD,0,-FIELD],[FIELD,0,FIELD],[-FIELD,0,FIELD]], color:'#4CAF50'});
 
 const treePoses = [];
 for (let i=0;i<16;i++) {
@@ -299,10 +296,20 @@ function render() {
   camY=bunny.y+0.8+Math.sin(camPitch)*CAM_D;
   camZ=bunny.z+Math.cos(camYaw)*CAM_D*Math.cos(camPitch);
 
-  const sky=ctx.createLinearGradient(0,0,0,H*.75);
-  sky.addColorStop(0,'#3A86C8'); sky.addColorStop(1,'#B8DFFA');
-  ctx.fillStyle=sky; ctx.fillRect(0,0,W,H);
+  // Horizon position on screen (never sort the ground polygon — just draw 2D)
+  const horizY = clamp(H/2 - FOV*Math.tan(camPitch), 0, H);
 
+  // Sky
+  const sky=ctx.createLinearGradient(0,0,0,horizY);
+  sky.addColorStop(0,'#3A86C8'); sky.addColorStop(1,'#B8DFFA');
+  ctx.fillStyle=sky; ctx.fillRect(0,0,W,horizY);
+
+  // Ground — always behind everything
+  const gnd=ctx.createLinearGradient(0,horizY,0,H);
+  gnd.addColorStop(0,'#66BB6A'); gnd.addColorStop(1,'#388E3C');
+  ctx.fillStyle=gnd; ctx.fillRect(0,horizY,W,H-horizY);
+
+  // Sort and draw 3D objects (no ground in this list)
   const all=[...staticFaces,...getCarrotFaces(),...getBunnyFaces()];
   all.sort((a,b)=>avgDepth(b.verts)-avgDepth(a.verts));
   for(const f of all) renderFace(f.verts,f.color);
