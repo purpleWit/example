@@ -1,490 +1,329 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Зайчик и морковки</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { overflow: hidden; background: #87CEEB; font-family: Arial, sans-serif; touch-action: none; }
-    canvas { display: block; }
-
-    #ui {
-      position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
-      display: flex; gap: 12px; align-items: center; pointer-events: none; z-index: 10;
-    }
-    .card {
-      background: rgba(255,255,255,0.88); border-radius: 12px;
-      padding: 6px 16px; font-size: 16px; font-weight: bold; color: #333;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2); white-space: nowrap;
-    }
-
-    #win {
-      display: none; position: fixed; inset: 0; z-index: 20;
-      background: rgba(0,0,0,0.5); align-items: center; justify-content: center;
-    }
-    #win.show { display: flex; }
-    .win-box {
-      background: white; border-radius: 20px; padding: 32px 48px;
-      text-align: center; font-size: 24px; font-weight: bold;
-    }
-    .win-box p { font-size: 16px; margin-top: 8px; color: #555; }
-    .win-box button {
-      margin-top: 20px; padding: 14px 36px; font-size: 18px;
-      background: #4CAF50; color: white; border: none;
-      border-radius: 10px; cursor: pointer; font-weight: bold;
-    }
-
-    /* ── Virtual joystick ── */
-    #joystick-zone {
-      position: fixed; bottom: 24px; left: 24px; z-index: 10;
-      width: 130px; height: 130px;
-    }
-    #joystick-base {
-      width: 130px; height: 130px; border-radius: 50%;
-      background: rgba(255,255,255,0.25); border: 3px solid rgba(255,255,255,0.5);
-      position: absolute; top: 0; left: 0;
-    }
-    #joystick-stick {
-      width: 52px; height: 52px; border-radius: 50%;
-      background: rgba(255,255,255,0.75); border: 3px solid rgba(255,255,255,0.9);
-      position: absolute;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-      transition: transform 0.05s;
-    }
-
-    /* ── Jump button ── */
-    #btn-jump {
-      position: fixed; bottom: 40px; right: 28px; z-index: 10;
-      width: 72px; height: 72px; border-radius: 50%;
-      background: rgba(255,255,255,0.35); border: 3px solid rgba(255,255,255,0.7);
-      font-size: 28px; line-height: 66px; text-align: center;
-      user-select: none; -webkit-user-select: none;
-    }
-
-    /* Hide desktop hint on mobile */
-    #controls {
-      position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
-      background: rgba(255,255,255,0.75); border-radius: 10px;
-      padding: 6px 16px; font-size: 13px; color: #444; pointer-events: none; z-index: 10;
-    }
-    @media (pointer: coarse) { #controls { display: none; } }
-    @media (pointer: fine)   { #joystick-zone, #btn-jump { display: none; } }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Зайчик и морковки</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { overflow:hidden; touch-action:none; font-family:Arial,sans-serif; }
+canvas { display:block; }
+#ui { position:fixed; top:12px; left:50%; transform:translateX(-50%);
+      display:flex; gap:12px; pointer-events:none; z-index:10; }
+.card { background:rgba(255,255,255,.88); border-radius:12px;
+        padding:6px 16px; font-size:16px; font-weight:bold; color:#333;
+        box-shadow:0 2px 8px rgba(0,0,0,.2); white-space:nowrap; }
+#win { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5);
+       align-items:center; justify-content:center; z-index:20; }
+#win.show { display:flex; }
+.wbox { background:#fff; border-radius:20px; padding:32px 48px;
+        text-align:center; font-size:22px; font-weight:bold; }
+.wbox p { font-size:15px; margin-top:8px; color:#555; }
+.wbox button { margin-top:18px; padding:14px 36px; font-size:17px;
+               background:#4CAF50; color:#fff; border:none;
+               border-radius:10px; cursor:pointer; font-weight:bold; }
+#joy { position:fixed; bottom:24px; left:24px; z-index:10; width:120px; height:120px; }
+#jbase { width:120px; height:120px; border-radius:60px;
+         background:rgba(255,255,255,.25); border:3px solid rgba(255,255,255,.5);
+         position:absolute; }
+#jstick { width:48px; height:48px; border-radius:24px;
+          background:rgba(255,255,255,.75); border:3px solid rgba(255,255,255,.9);
+          position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); }
+#bjump { position:fixed; bottom:40px; right:28px; z-index:10;
+         width:70px; height:70px; border-radius:35px;
+         background:rgba(255,255,255,.35); border:3px solid rgba(255,255,255,.7);
+         font-size:26px; line-height:64px; text-align:center;
+         user-select:none; -webkit-user-select:none; }
+#hint { position:fixed; bottom:16px; left:50%; transform:translateX(-50%);
+        background:rgba(255,255,255,.75); border-radius:8px; padding:5px 14px;
+        font-size:12px; color:#444; pointer-events:none; }
+@media (pointer:coarse) { #hint { display:none; } }
+@media (pointer:fine)   { #joy, #bjump { display:none; } }
+</style>
 </head>
 <body>
-
+<canvas id="c"></canvas>
 <div id="ui">
-  <div class="card">🥕 <span id="score">0</span> / <span id="total">0</span></div>
-  <div class="card">⏱ <span id="timer">0</span> с</div>
+  <div class="card">🥕 <span id="score">0</span>/<span id="total">0</span></div>
+  <div class="card">⏱ <span id="timer">0</span>с</div>
 </div>
-
 <div id="win">
-  <div class="win-box">
-    🎉 Зайчик сыт! 🐰<br>
-    <p>Все морковки съедены за <span id="finalTime"></span> с!</p>
-    <button onclick="restartGame()">Играть снова</button>
+  <div class="wbox">🎉 Зайчик сыт! 🐰
+    <p>Все морковки съедены за <span id="ftime"></span> с!</p>
+    <button onclick="restart()">Играть снова</button>
   </div>
 </div>
-
-<div id="controls">WASD / стрелки — движение &nbsp;|&nbsp; Мышь — камера &nbsp;|&nbsp; Пробел — прыжок</div>
-
-<!-- Touch controls (shown only on touch devices) -->
-<div id="joystick-zone">
-  <div id="joystick-base"></div>
-  <div id="joystick-stick"></div>
-</div>
-<div id="btn-jump">🐰</div>
-
-<script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
+<div id="joy"><div id="jbase"></div><div id="jstick"></div></div>
+<div id="bjump">🐰</div>
+<div id="hint">WASD — движение &nbsp;|&nbsp; Мышь — камера &nbsp;|&nbsp; Пробел — прыжок</div>
 <script>
-// ─── Scene ────────────────────────────────────────────────────────────────────
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87CEEB);
-scene.fog = new THREE.Fog(0x87CEEB, 40, 120);
+'use strict';
+const CV = document.getElementById('c');
+const ctx = CV.getContext('2d');
+let W = CV.width = innerWidth, H = CV.height = innerHeight;
+addEventListener('resize', () => { W = CV.width = innerWidth; H = CV.height = innerHeight; });
 
-const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 200);
+// ── Colour helpers ────────────────────────────────────────────────────────────
+const clamp = (v,lo,hi) => Math.max(lo, Math.min(hi, v));
+function shade(hex, amt) {
+  const n = parseInt(hex.replace('#',''), 16);
+  const r = clamp(((n>>16)&255)+amt,0,255);
+  const g = clamp(((n>>8)&255)+amt,0,255);
+  const b = clamp((n&255)+amt,0,255);
+  return `rgb(${r},${g},${b})`;
+}
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-document.body.appendChild(renderer.domElement);
+// ── 3D engine ─────────────────────────────────────────────────────────────────
+const FOV = 370;
+let camX=0, camY=5, camZ=10, camYaw=Math.PI, camPitch=0.3;
 
-window.addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
+function toCamera(wx,wy,wz) {
+  let dx=wx-camX, dy=wy-camY, dz=wz-camZ;
+  const cy=Math.cos(-camYaw), sy=Math.sin(-camYaw);
+  let rx=dx*cy-dz*sy, rz=dx*sy+dz*cy;
+  const cp=Math.cos(-camPitch), sp=Math.sin(-camPitch);
+  let ry=dy*cp-rz*sp; rz=dy*sp+rz*cp;
+  return [rx,ry,rz];
+}
+function project(wx,wy,wz) {
+  const [rx,ry,rz] = toCamera(wx,wy,wz);
+  if (rz<=0.2) return null;
+  const f=FOV/rz;
+  return { sx:rx*f+W*.5, sy:-ry*f+H*.5, z:rz };
+}
+function avgDepth(verts) {
+  let s=0; for (const [x,y,z] of verts) s+=toCamera(x,y,z)[2];
+  return s/verts.length;
+}
+function renderFace(verts, color) {
+  const pts = verts.map(([x,y,z])=>project(x,y,z));
+  const valid = pts.filter(p=>p);
+  if (valid.length<3) return;
+  ctx.beginPath();
+  ctx.moveTo(valid[0].sx, valid[0].sy);
+  for (let i=1;i<valid.length;i++) ctx.lineTo(valid[i].sx, valid[i].sy);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+// Build box: 6 faces, vertices rotated by yaw around box centre
+function makeBox(ox,oy,oz, w,h,d, color, yaw=0) {
+  const hw=w/2,hh=h/2,hd=d/2;
+  const cy=Math.cos(yaw), sy=Math.sin(yaw);
+  const rv=(x,y,z)=>[ox+x*cy-z*sy, oy+y, oz+x*sy+z*cy];
+  const v=[
+    rv(-hw,-hh,-hd),rv(hw,-hh,-hd),rv(hw,hh,-hd),rv(-hw,hh,-hd),
+    rv(-hw,-hh,hd), rv(hw,-hh,hd), rv(hw,hh,hd), rv(-hw,hh,hd),
+  ];
+  return [
+    {verts:[v[0],v[1],v[2],v[3]], color},
+    {verts:[v[5],v[4],v[7],v[6]], color:shade(color,-35)},
+    {verts:[v[4],v[0],v[3],v[7]], color:shade(color,-18)},
+    {verts:[v[1],v[5],v[6],v[2]], color:shade(color,-18)},
+    {verts:[v[3],v[2],v[6],v[7]], color:shade(color,28)},
+    {verts:[v[4],v[5],v[1],v[0]], color:shade(color,-45)},
+  ];
+}
+
+// ── Static world ──────────────────────────────────────────────────────────────
+const FIELD = 45;
+const staticFaces = [];
+staticFaces.push({verts:[[-FIELD,0,-FIELD],[FIELD,0,-FIELD],[FIELD,0,FIELD],[-FIELD,0,FIELD]], color:'#4CAF50'});
+
+const treePoses = [];
+for (let i=0;i<16;i++) {
+  let tx,tz;
+  do { tx=(Math.random()-.5)*80; tz=(Math.random()-.5)*80; } while(Math.hypot(tx,tz)<10);
+  treePoses.push([tx,tz]);
+  staticFaces.push(...makeBox(tx,0.75,tz, 0.4,1.5,0.4, '#795548'));
+  staticFaces.push(...makeBox(tx,2.5,tz,  2.2,1.8,2.2, '#2E7D32'));
+  staticFaces.push(...makeBox(tx,3.9,tz,  1.5,1.3,1.5, '#388E3C'));
+}
+
+// ── Carrots ───────────────────────────────────────────────────────────────────
+const NCARROTS = 12;
+let carrotList = [];
+function spawnCarrots() {
+  carrotList = [];
+  for (let i=0;i<NCARROTS;i++) {
+    let cx,cz;
+    do {
+      cx=(Math.random()-.5)*75; cz=(Math.random()-.5)*75;
+    } while(Math.hypot(cx,cz)<4 || treePoses.some(([tx,tz])=>Math.hypot(cx-tx,cz-tz)<2.5));
+    carrotList.push({x:cx,z:cz,alive:true});
+  }
+}
+spawnCarrots();
+document.getElementById('total').textContent = NCARROTS;
+
+function getCarrotFaces() {
+  const f=[];
+  for (const c of carrotList) {
+    if (!c.alive) continue;
+    f.push(...makeBox(c.x,0.35,c.z, 0.3,0.7,0.3, '#FF6D00'));
+    f.push(...makeBox(c.x,0.88,c.z, 0.15,0.4,0.15, '#33691E'));
+  }
+  return f;
+}
+
+// ── Bunny ─────────────────────────────────────────────────────────────────────
+const bunny = {x:0,y:0,z:0,yaw:0,velY:0,jumping:false,bobT:0};
+function getBunnyFaces() {
+  const {x,y,z,yaw,bobT}=bunny, f=[];
+  function part(ox,oy,oz,w,h,d,col) {
+    const cy=Math.cos(yaw),sy=Math.sin(yaw);
+    f.push(...makeBox(x+ox*cy-oz*sy, y+oy, z+ox*sy+oz*cy, w,h,d, col, yaw));
+  }
+  const s=Math.sin(bobT)*0.06;
+  part(0,   0.55,0,    0.72,0.78,0.98,'#f0f0f0');
+  part(0,   1.32,0.25, 0.58,0.52,0.52,'#f0f0f0');
+  part(0,   0.60,-0.52,0.22,0.22,0.22,'#ffffff');
+  part(-0.15,1.90,0.20,0.13,0.55,0.13,'#f0f0f0');
+  part( 0.15,1.90,0.20,0.13,0.55,0.13,'#f0f0f0');
+  part(-0.22,0.15+s, 0.28,0.15,0.32,0.15,'#e0e0e0');
+  part( 0.22,0.15-s, 0.28,0.15,0.32,0.15,'#e0e0e0');
+  part(-0.22,0.15-s,-0.28,0.15,0.32,0.15,'#e0e0e0');
+  part( 0.22,0.15+s,-0.28,0.15,0.32,0.15,'#e0e0e0');
+  part(0,    1.22,0.52, 0.11,0.09,0.06,'#ff80ab');
+  return f;
+}
+
+// ── Controls ──────────────────────────────────────────────────────────────────
+const keys={};
+addEventListener('keydown',e=>{ keys[e.code]=true; e.preventDefault(); });
+addEventListener('keyup',  e=>{ keys[e.code]=false; });
+
+CV.addEventListener('click',()=>CV.requestPointerLock());
+document.addEventListener('mousemove',e=>{
+  if (document.pointerLockElement!==CV) return;
+  camYaw  -= e.movementX*0.003;
+  camPitch = clamp(camPitch+e.movementY*0.002,0.08,0.72);
 });
 
-// ─── Lighting ────────────────────────────────────────────────────────────────
-scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-const sun = new THREE.DirectionalLight(0xfff5e0, 1.2);
-sun.position.set(30, 60, 20);
-sun.castShadow = true;
-sun.shadow.mapSize.set(1024, 1024);
-sun.shadow.camera.near = 1; sun.shadow.camera.far = 200;
-sun.shadow.camera.left = -60; sun.shadow.camera.right = 60;
-sun.shadow.camera.top = 60;  sun.shadow.camera.bottom = -60;
-scene.add(sun);
-
-// ─── Ground ───────────────────────────────────────────────────────────────────
-const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(100, 100, 20, 20),
-  new THREE.MeshLambertMaterial({ color: 0x4CAF50 })
-);
-ground.rotation.x = -Math.PI / 2;
-ground.receiveShadow = true;
-scene.add(ground);
-
-// ─── Grass tufts ─────────────────────────────────────────────────────────────
-const grassMat = new THREE.MeshLambertMaterial({ color: 0x388E3C });
-for (let i = 0; i < 180; i++) {
-  const x = (Math.random() - 0.5) * 90, z = (Math.random() - 0.5) * 90;
-  const h = 0.2 + Math.random() * 0.3;
-  const g = new THREE.Mesh(new THREE.ConeGeometry(0.08 + Math.random() * 0.1, h, 4), grassMat);
-  g.position.set(x, h / 2, z);
-  g.rotation.y = Math.random() * Math.PI;
-  scene.add(g);
-}
-
-// ─── Clouds ───────────────────────────────────────────────────────────────────
-const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
-const clouds = [];
-function makeCloud(x, y, z) {
-  const g = new THREE.Group();
-  [[0,0,0,2.5,1.2],[-2,-0.2,0,1.8,1],[2,-0.2,0,1.8,1],[-1,0.4,0,1.5,0.9],[1,0.4,0,1.5,0.9]]
-    .forEach(([px,py,pz,rx,ry]) => {
-      const m = new THREE.Mesh(new THREE.SphereGeometry(1, 7, 5), cloudMat);
-      m.scale.set(rx, ry, 1); m.position.set(px, py, pz); g.add(m);
-    });
-  g.position.set(x, y, z); scene.add(g); return g;
-}
-for (let i = 0; i < 8; i++)
-  clouds.push(makeCloud((Math.random()-.5)*100, 15+Math.random()*10, (Math.random()-.5)*100));
-
-// ─── Trees ────────────────────────────────────────────────────────────────────
-const trunkMat = new THREE.MeshLambertMaterial({ color: 0x795548 });
-const leafMat  = new THREE.MeshLambertMaterial({ color: 0x2E7D32 });
-const treePositions = [];
-function makeTree(x, z) {
-  const g = new THREE.Group();
-  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 1.5, 7), trunkMat);
-  trunk.position.y = 0.75; trunk.castShadow = true; g.add(trunk);
-  for (let i = 0; i < 3; i++) {
-    const cone = new THREE.Mesh(new THREE.ConeGeometry(1.2-i*0.2, 1.8-i*0.3, 7), leafMat);
-    cone.position.y = 1.5 + i * 0.8; cone.castShadow = true; g.add(cone);
-  }
-  g.position.set(x, 0, z); scene.add(g);
-}
-for (let i = 0; i < 18; i++) {
-  let x, z;
-  do { x = (Math.random()-.5)*85; z = (Math.random()-.5)*85; } while (Math.hypot(x,z) < 8);
-  treePositions.push([x, z]); makeTree(x, z);
-}
-
-// ─── Bunny ────────────────────────────────────────────────────────────────────
-const bunnyMat = new THREE.MeshLambertMaterial({ color: 0xf5f5f5 });
-const noseMat  = new THREE.MeshLambertMaterial({ color: 0xff80ab });
-const eyeMat   = new THREE.MeshLambertMaterial({ color: 0x212121 });
-const bunny    = new THREE.Group();
-
-const bodyMesh = new THREE.Mesh(new THREE.SphereGeometry(0.5, 12, 10), bunnyMat);
-bodyMesh.scale.y = 1.1; bodyMesh.position.y = 0.5; bodyMesh.castShadow = true;
-bunny.add(bodyMesh);
-
-const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.35, 12, 10), bunnyMat);
-headMesh.position.set(0, 1.2, 0.2); headMesh.castShadow = true;
-bunny.add(headMesh);
-
-function makeEar(side) {
-  const ear = new THREE.Group();
-  const outer = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.55, 8), bunnyMat);
-  outer.castShadow = true; ear.add(outer);
-  const inner = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.44, 8), noseMat);
-  inner.position.z = 0.04; ear.add(inner);
-  ear.position.set(side * 0.18, 1.72, 0.1);
-  ear.rotation.z = side * 0.15;
-  bunny.add(ear);
-}
-makeEar(-1); makeEar(1);
-
-const tail = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), bunnyMat);
-tail.position.set(0, 0.5, -0.48); bunny.add(tail);
-
-const nose = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), noseMat);
-nose.position.set(0, 1.12, 0.52); bunny.add(nose);
-
-[-0.14, 0.14].forEach(sx => {
-  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), eyeMat);
-  eye.position.set(sx, 1.26, 0.5); bunny.add(eye);
-});
-
-function makeLeg(x, z) {
-  const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.35, 8), bunnyMat);
-  leg.position.set(x, 0.15, z); leg.castShadow = true; bunny.add(leg); return leg;
-}
-const legFL = makeLeg(-0.2, 0.3), legFR = makeLeg(0.2, 0.3);
-const legBL = makeLeg(-0.22,-0.3), legBR = makeLeg(0.22,-0.3);
-
-scene.add(bunny);
-
-// ─── Carrots ─────────────────────────────────────────────────────────────────
-const carrotMat     = new THREE.MeshLambertMaterial({ color: 0xFF6D00 });
-const carrotLeafMat = new THREE.MeshLambertMaterial({ color: 0x33691E });
-const CARROT_COUNT  = 15;
-const carrots = [];
-
-function spawnCarrot() {
-  const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.7, 8), carrotMat);
-  body.rotation.x = Math.PI; body.position.y = 0.35; body.castShadow = true; g.add(body);
-  for (let i = 0; i < 3; i++) {
-    const lf = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.35, 6), carrotLeafMat);
-    lf.position.set(Math.sin(i*2.1)*0.07, 0.8, Math.cos(i*2.1)*0.07);
-    lf.rotation.z = (Math.random()-.5)*0.6;
-    g.add(lf);
-  }
-  let x, z;
-  do { x = (Math.random()-.5)*80; z = (Math.random()-.5)*80; }
-  while (Math.hypot(x,z) < 3 || treePositions.some(([tx,tz]) => Math.hypot(x-tx,z-tz) < 2));
-  g.position.set(x, 0, z);
-  g.userData.alive = true;
-  scene.add(g); carrots.push(g);
-}
-for (let i = 0; i < CARROT_COUNT; i++) spawnCarrot();
-document.getElementById('total').textContent = CARROT_COUNT;
-
-// ─── Particles ───────────────────────────────────────────────────────────────
-const particles = [];
-function spawnParticles(pos) {
-  for (let i = 0; i < 8; i++) {
-    const p = new THREE.Mesh(
-      new THREE.SphereGeometry(0.07, 4, 4),
-      new THREE.MeshLambertMaterial({ color: 0xFF6D00 })
-    );
-    p.position.copy(pos).add(new THREE.Vector3(
-      (Math.random()-.5)*.5, .3+Math.random()*.5, (Math.random()-.5)*.5
-    ));
-    p.userData.vel  = new THREE.Vector3((Math.random()-.5)*3, 2+Math.random()*3, (Math.random()-.5)*3);
-    p.userData.life = 1.0;
-    scene.add(p); particles.push(p);
-  }
-}
-
-// ─── Keyboard ────────────────────────────────────────────────────────────────
-const keys = {};
-addEventListener('keydown', e => { keys[e.code] = true; });
-addEventListener('keyup',   e => { keys[e.code] = false; });
-
-// ─── Mouse look ──────────────────────────────────────────────────────────────
-let yaw = 0, pitch = 0.25;
-const cvs = renderer.domElement;
-cvs.addEventListener('click', () => cvs.requestPointerLock());
-document.addEventListener('mousemove', e => {
-  if (document.pointerLockElement === cvs) {
-    yaw   -= e.movementX * 0.003;
-    pitch  = Math.max(0.1, Math.min(0.7, pitch + e.movementY * 0.002));
-  }
-});
-
-// ─── Virtual joystick ────────────────────────────────────────────────────────
-const joystickZone  = document.getElementById('joystick-zone');
-const joystickStick = document.getElementById('joystick-stick');
-const STICK_MAX = 42;
-
-const joystick = { active: false, id: -1, ox: 0, oy: 0, dx: 0, dy: 0 };
-
-joystickZone.addEventListener('touchstart', e => {
+// Joystick
+const jzone=document.getElementById('joy');
+const jstick=document.getElementById('jstick');
+const JMAX=38;
+const joy={active:false,id:-1,ox:0,oy:0,dx:0,dy:0};
+jzone.addEventListener('touchstart',e=>{
   e.preventDefault();
-  const t = e.changedTouches[0];
-  const r = joystickZone.getBoundingClientRect();
-  joystick.active = true;
-  joystick.id = t.identifier;
-  joystick.ox = r.left + r.width  / 2;
-  joystick.oy = r.top  + r.height / 2;
-  joystick.dx = joystick.dy = 0;
-}, { passive: false });
-
-function onJoystickMove(e) {
-  if (!joystick.active) return;
-  e.preventDefault();
-  for (const t of e.changedTouches) {
-    if (t.identifier !== joystick.id) continue;
-    let dx = t.clientX - joystick.ox;
-    let dy = t.clientY - joystick.oy;
-    const len = Math.hypot(dx, dy);
-    if (len > STICK_MAX) { dx = dx/len*STICK_MAX; dy = dy/len*STICK_MAX; }
-    joystick.dx = dx; joystick.dy = dy;
-    joystickStick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+  const t=e.changedTouches[0], r=jzone.getBoundingClientRect();
+  joy.active=true; joy.id=t.identifier;
+  joy.ox=r.left+r.width/2; joy.oy=r.top+r.height/2; joy.dx=joy.dy=0;
+},{passive:false});
+function joyMove(e){ if(!joy.active)return; e.preventDefault();
+  for(const t of e.changedTouches){ if(t.identifier!==joy.id)continue;
+    let dx=t.clientX-joy.ox, dy=t.clientY-joy.oy;
+    const len=Math.hypot(dx,dy); if(len>JMAX){dx=dx/len*JMAX;dy=dy/len*JMAX;}
+    joy.dx=dx; joy.dy=dy;
+    jstick.style.transform=`translate(calc(-50% + ${dx}px),calc(-50% + ${dy}px))`;
   }
 }
-function onJoystickEnd(e) {
-  for (const t of e.changedTouches) {
-    if (t.identifier === joystick.id) {
-      joystick.active = false; joystick.dx = joystick.dy = 0;
-      joystickStick.style.transform = 'translate(-50%, -50%)';
-    }
+function joyEnd(e){ for(const t of e.changedTouches) if(t.identifier===joy.id){
+  joy.active=false; joy.dx=joy.dy=0; jstick.style.transform='translate(-50%,-50%)';
+}}
+document.addEventListener('touchmove',joyMove,{passive:false});
+document.addEventListener('touchend',joyEnd);
+document.addEventListener('touchcancel',joyEnd);
+
+// Camera swipe
+const camT={active:false,id:-1,lx:0,ly:0};
+CV.addEventListener('touchstart',e=>{ e.preventDefault();
+  for(const t of e.changedTouches){ if(camT.active)continue;
+    const jr=jzone.getBoundingClientRect();
+    if(!(t.clientX>=jr.left&&t.clientX<=jr.right&&t.clientY>=jr.top&&t.clientY<=jr.bottom))
+    { camT.active=true; camT.id=t.identifier; camT.lx=t.clientX; camT.ly=t.clientY; }
   }
-}
-document.addEventListener('touchmove', onJoystickMove, { passive: false });
-document.addEventListener('touchend',  onJoystickEnd);
-document.addEventListener('touchcancel', onJoystickEnd);
-
-// ─── Camera swipe (right half of screen, outside joystick) ───────────────────
-const camTouch = { active: false, id: -1, lx: 0, ly: 0 };
-const joystickRect = () => joystickZone.getBoundingClientRect();
-
-cvs.addEventListener('touchstart', e => {
-  e.preventDefault();
-  for (const t of e.changedTouches) {
-    if (camTouch.active) continue;
-    const jr = joystickRect();
-    const inJoy = t.clientX >= jr.left && t.clientX <= jr.right &&
-                  t.clientY >= jr.top  && t.clientY <= jr.bottom;
-    if (!inJoy) {
-      camTouch.active = true; camTouch.id = t.identifier;
-      camTouch.lx = t.clientX; camTouch.ly = t.clientY;
-    }
+},{passive:false});
+CV.addEventListener('touchmove',e=>{ e.preventDefault();
+  for(const t of e.changedTouches){ if(t.identifier!==camT.id)continue;
+    camYaw  -= (t.clientX-camT.lx)*0.005;
+    camPitch = clamp(camPitch+(t.clientY-camT.ly)*0.004,0.08,0.72);
+    camT.lx=t.clientX; camT.ly=t.clientY;
   }
-}, { passive: false });
+},{passive:false});
+CV.addEventListener('touchend',e=>{ for(const t of e.changedTouches) if(t.identifier===camT.id) camT.active=false; });
 
-cvs.addEventListener('touchmove', e => {
-  e.preventDefault();
-  for (const t of e.changedTouches) {
-    if (t.identifier !== camTouch.id) continue;
-    yaw  -= (t.clientX - camTouch.lx) * 0.005;
-    pitch = Math.max(0.1, Math.min(0.7, pitch + (t.clientY - camTouch.ly) * 0.004));
-    camTouch.lx = t.clientX; camTouch.ly = t.clientY;
+// Jump button
+let touchJump=false;
+const bjump=document.getElementById('bjump');
+bjump.addEventListener('touchstart',e=>{e.preventDefault();touchJump=true;},{passive:false});
+bjump.addEventListener('touchend',  e=>{e.preventDefault();touchJump=false;},{passive:false});
+
+// ── Game ──────────────────────────────────────────────────────────────────────
+let score=0, startT=Date.now(), over=false;
+const SPEED=7, CRAD=1.3, HLIM=43;
+
+function update(dt) {
+  if(over)return;
+  document.getElementById('timer').textContent=((Date.now()-startT)/1000)|0;
+  const fwdX=-Math.sin(camYaw), fwdZ=-Math.cos(camYaw);
+  const rgtX= Math.cos(camYaw), rgtZ=-Math.sin(camYaw);
+  let mx=0,mz=0;
+  if(keys['KeyW']||keys['ArrowUp'])   {mx+=fwdX;mz+=fwdZ;}
+  if(keys['KeyS']||keys['ArrowDown']) {mx-=fwdX;mz-=fwdZ;}
+  if(keys['KeyA']||keys['ArrowLeft']) {mx-=rgtX;mz-=rgtZ;}
+  if(keys['KeyD']||keys['ArrowRight']){mx+=rgtX;mz+=rgtZ;}
+  if(joy.active&&(Math.abs(joy.dx)>4||Math.abs(joy.dy)>4)){
+    const nx=joy.dx/JMAX, ny=joy.dy/JMAX;
+    mx+=fwdX*(-ny)+rgtX*nx; mz+=fwdZ*(-ny)+rgtZ*nx;
   }
-}, { passive: false });
-
-cvs.addEventListener('touchend', e => {
-  for (const t of e.changedTouches)
-    if (t.identifier === camTouch.id) camTouch.active = false;
-});
-
-// ─── Jump button ─────────────────────────────────────────────────────────────
-let touchJump = false;
-const btnJump = document.getElementById('btn-jump');
-btnJump.addEventListener('touchstart', e => { e.preventDefault(); touchJump = true;  }, { passive: false });
-btnJump.addEventListener('touchend',   e => { e.preventDefault(); touchJump = false; }, { passive: false });
-
-// ─── Game state ──────────────────────────────────────────────────────────────
-let score = 0, startTime = performance.now(), gameOver = false;
-const SPEED = 6, CARROT_RADIUS = 1.2, FIELD_HALF = 48;
-let bunnyVelY = 0, isJumping = false, bobTime = 0;
-
-// ─── Main loop ───────────────────────────────────────────────────────────────
-const clock = new THREE.Clock();
-
-function animate() {
-  requestAnimationFrame(animate);
-  const dt = Math.min(clock.getDelta(), 0.05);
-
-  if (!gameOver) {
-    document.getElementById('timer').textContent = ((performance.now() - startTime) / 1000) | 0;
-
-    // Build movement direction
-    const dir = new THREE.Vector3();
-    const forward = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
-    const right   = new THREE.Vector3( Math.cos(yaw), 0, -Math.sin(yaw));
-
-    // Keyboard
-    if (keys['KeyW'] || keys['ArrowUp'])    dir.add(forward);
-    if (keys['KeyS'] || keys['ArrowDown'])  dir.sub(forward);
-    if (keys['KeyA'] || keys['ArrowLeft'])  dir.sub(right);
-    if (keys['KeyD'] || keys['ArrowRight']) dir.add(right);
-
-    // Joystick
-    if (joystick.active && (Math.abs(joystick.dx) > 4 || Math.abs(joystick.dy) > 4)) {
-      const nx = joystick.dx / STICK_MAX, ny = joystick.dy / STICK_MAX;
-      dir.add(forward.clone().multiplyScalar(-ny));
-      dir.add(right.clone().multiplyScalar(nx));
-    }
-
-    const moving = dir.lengthSq() > 0.001;
-    if (moving) {
-      dir.normalize().multiplyScalar(SPEED * dt);
-      bunny.position.add(dir);
-      bunny.position.x = Math.max(-FIELD_HALF, Math.min(FIELD_HALF, bunny.position.x));
-      bunny.position.z = Math.max(-FIELD_HALF, Math.min(FIELD_HALF, bunny.position.z));
-      bunny.rotation.y = Math.atan2(-dir.x, -dir.z);
-      bobTime += dt * 8;
-    }
-
-    // Jump
-    if ((keys['Space'] || keys['KeyF'] || touchJump) && !isJumping) {
-      bunnyVelY = 6; isJumping = true;
-    }
-    bunnyVelY -= 18 * dt;
-    bunny.position.y += bunnyVelY * dt;
-    if (bunny.position.y < 0) { bunny.position.y = 0; bunnyVelY = 0; isJumping = false; }
-
-    // Leg animation
-    const swing = Math.sin(bobTime) * 0.4;
-    legFL.rotation.x =  swing; legFR.rotation.x = -swing;
-    legBL.rotation.x = -swing; legBR.rotation.x =  swing;
-    bodyMesh.position.y = 0.5 + (moving ? Math.abs(Math.sin(bobTime)) * 0.05 : 0);
-
-    // Carrot eating
-    for (const c of carrots) {
-      if (!c.userData.alive) continue;
-      if (Math.hypot(bunny.position.x - c.position.x, bunny.position.z - c.position.z) < CARROT_RADIUS) {
-        c.userData.alive = false; scene.remove(c); score++;
-        document.getElementById('score').textContent = score;
-        spawnParticles(c.position);
-        if (score >= CARROT_COUNT) {
-          gameOver = true;
-          document.getElementById('finalTime').textContent = ((performance.now() - startTime) / 1000).toFixed(1);
-          document.getElementById('win').classList.add('show');
-        }
+  const len=Math.hypot(mx,mz), moving=len>0.01;
+  if(moving){
+    mx/=len; mz/=len;
+    bunny.x=clamp(bunny.x+mx*SPEED*dt,-HLIM,HLIM);
+    bunny.z=clamp(bunny.z+mz*SPEED*dt,-HLIM,HLIM);
+    bunny.yaw=Math.atan2(-mx,-mz);
+    bunny.bobT+=dt*9;
+  }
+  if((keys['Space']||keys['KeyF']||touchJump)&&!bunny.jumping){bunny.velY=6;bunny.jumping=true;}
+  bunny.velY-=18*dt; bunny.y=Math.max(0,bunny.y+bunny.velY*dt);
+  if(bunny.y<=0){bunny.velY=0;bunny.jumping=false;}
+  for(const c of carrotList){ if(!c.alive)continue;
+    if(Math.hypot(bunny.x-c.x,bunny.z-c.z)<CRAD){
+      c.alive=false; score++;
+      document.getElementById('score').textContent=score;
+      if(score>=NCARROTS){
+        over=true;
+        document.getElementById('ftime').textContent=((Date.now()-startT)/1000).toFixed(1);
+        document.getElementById('win').classList.add('show');
       }
     }
   }
-
-  // Particles
-  for (let i = particles.length - 1; i >= 0; i--) {
-    const p = particles[i];
-    p.userData.life -= dt * 2;
-    if (p.userData.life <= 0) { scene.remove(p); particles.splice(i, 1); }
-    else { p.userData.vel.y -= 10 * dt; p.position.addScaledVector(p.userData.vel, dt); }
-  }
-
-  // Clouds
-  const t = performance.now() * 0.0001;
-  clouds.forEach((c, i) => { c.position.x += Math.sin(t + i) * 0.01; });
-
-  // Camera
-  const camDist = 10;
-  const target = bunny.position.clone().add(new THREE.Vector3(0, 1.2, 0));
-  camera.position.set(
-    target.x + Math.sin(yaw) * camDist * Math.cos(pitch),
-    target.y + camDist * Math.sin(pitch),
-    target.z + Math.cos(yaw) * camDist * Math.cos(pitch)
-  );
-  camera.lookAt(target);
-
-  renderer.render(scene, camera);
 }
 
-// ─── Restart ─────────────────────────────────────────────────────────────────
-function restartGame() {
-  carrots.forEach(c => scene.remove(c)); carrots.length = 0;
-  particles.forEach(p => scene.remove(p)); particles.length = 0;
-  score = 0; gameOver = false;
-  bunny.position.set(0, 0, 0);
-  startTime = performance.now(); bobTime = 0;
-  for (let i = 0; i < CARROT_COUNT; i++) spawnCarrot();
-  document.getElementById('score').textContent = 0;
+function render() {
+  const CAM_D=9;
+  camX=bunny.x+Math.sin(camYaw)*CAM_D*Math.cos(camPitch);
+  camY=bunny.y+0.8+Math.sin(camPitch)*CAM_D;
+  camZ=bunny.z+Math.cos(camYaw)*CAM_D*Math.cos(camPitch);
+
+  const sky=ctx.createLinearGradient(0,0,0,H*.75);
+  sky.addColorStop(0,'#3A86C8'); sky.addColorStop(1,'#B8DFFA');
+  ctx.fillStyle=sky; ctx.fillRect(0,0,W,H);
+
+  const all=[...staticFaces,...getCarrotFaces(),...getBunnyFaces()];
+  all.sort((a,b)=>avgDepth(b.verts)-avgDepth(a.verts));
+  for(const f of all) renderFace(f.verts,f.color);
+}
+
+let prev=0;
+function loop(now){
+  requestAnimationFrame(loop);
+  const dt=Math.min((now-prev)/1000,0.05); prev=now;
+  update(dt); render();
+}
+requestAnimationFrame(loop);
+
+function restart(){
+  score=0; over=false;
+  Object.assign(bunny,{x:0,y:0,z:0,yaw:0,velY:0,jumping:false,bobT:0});
+  startT=Date.now(); spawnCarrots();
+  document.getElementById('score').textContent=0;
   document.getElementById('win').classList.remove('show');
 }
-window.restartGame = restartGame;
-
-animate();
+window.restart=restart;
 </script>
 </body>
 </html>
